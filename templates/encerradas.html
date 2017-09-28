@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Operações Encerradas
+{% endblock %}
+
+{% block main %}
+<h1>Operações Encerradas</h1>
+<br>
+{% for dado in dados %}
+    <h4>{{ dado.periodo }}</h4>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Ação</th>
+                <th>Empresa</th> 
+                <th>Quantidade</th>
+                <th>Preço Médio de Compra</th>
+                <th>Preço Médio de Venda</th>
+                <th>P/L</th>
+                <th>%</th>
+                <th>Data</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for operacao in dado["valores"] %}
+            <tr>
+                <td>{{ operacao.stock }}</td>
+                <td>{{ operacao.company }}</td>
+                <td>{{ operacao.quantity }}</td> 
+                <td>{{ operacao.mediocompra }}</td>
+                <td>{{ operacao.mediovenda }}</td>
+                <td class="{{ operacao.sinal }}">{{ operacao.lucro }}</td>
+                <td class="{{ operacao.sinal }}">{{ operacao.percent }}</td>
+                <td>{{ operacao.data}}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td>Total:</td>
+                <td colspan="4"></td>
+                <td>{{ dado.lucro }}</td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+    {% endfor %}
+
+{% endblock %}

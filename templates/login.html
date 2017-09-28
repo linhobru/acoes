@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Log In
+{% endblock %}
+
+{% block main %}
+    <form action="{{ url_for('login') }}" class="form-horizontal" method="post">
+        <fieldset>
+            <div class="form-group">
+                <label class="col-sm-5 control-label" for="username">Usuário: </label>
+                <div class="col-sm-7">
+                    <input autofocus class="form-control" name="username" id="Username" placeholder="username" type="text" required/>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-sm-5 control-label" for="password">Senha: </label>
+                <div class="col-sm-7">
+                    <input class="form-control" name="password" placeholder="Password" type="password" id="password" required/>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-sm-offset-5 col-sm-7">
+                    <button class="btn btn-default" type="submit">Login</button>
+                </div>
+            </div>
+        </fieldset>
+    </form>
+{% endblock %}

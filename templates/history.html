@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Histórico de Transações
+{% endblock %}
+
+{% block main %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Ação</th>
+                <th>Empresa</th> 
+                <th>Quantidade</th>
+                <th>Preço</th>
+                <th>Taxas</th>
+                <th>Total</th>
+                <th>Data</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for stock in portfolio %}
+            <tr>
+                <td>{{ stock.stock }}</td>
+                <td>{{ stock.company }}</td>
+                <td>{{ stock.quantity }}</td> 
+                <td>{{ stock.price }}</td>
+                <td>{{ stock.taxas }}</td>
+                <td>{{ stock.total }}</td>
+                <td>{{ stock.date }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td>Total:</td>
+                <td colspan="3"></td>
+                <td>{{ taxas }}</td>
+                <td>{{ total_transacted }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+    <br>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Total Comprado</th>
+                <th>Total Vendido</th> 
+                <th>Portfólio Atual</th>
+                <th>Lucro Total</th>
+            </tr>
+        </thead>
+        <tfoot>
+            <tr>
+                <td>{{ compras }}</td>
+                <td>{{ vendas }}</td>
+                <td>{{ port_worth }}</td>
+                <td>{{ lucro }}</td>
+            </tr>
+        </tfoot>
+    </table>
+{% endblock %}

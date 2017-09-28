@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Index
+{% endblock %}
+
+{% block main %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Ação</th>
+                <th>Empresa</th> 
+                <th>Quantidade</th>
+                <th>Preço Médio</th>                
+                <th>Preço Atual</th>
+                <th>Patrimônio</th>
+                <th>P/L</th>
+                <th>%</th>
+            </tr>
+        <tbody>
+        {% for i in data %}
+            <tr>
+                <td>{{ i.stock }}</td>
+                <td>{{ i.company }}</td>
+                <td>{{ i.quantity }}</td> 
+                <td>{{ i.medio }}</td>
+                <td>{{ i.atual }}</td>
+                <td>{{ i.total }}</td>
+                <td class="{{ i.sinal }}">{{ i.lucro }}</td>
+                <td class="{{ i.sinal }}">{{ i.percent }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td>Total:</td>
+                <td colspan="4"></td>
+                <td>{{ port_worth }}</td>
+                <td>{{ lucro_atual }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+{% endblock %}

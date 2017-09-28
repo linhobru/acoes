@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Cotação de Ações
+{% endblock %}
+
+{% block main %}
+    <form action="{{ url_for('quote') }}" class="form-horizontal" method="post">
+        <fieldset>
+            <div class="form-group">
+                <label class="col-sm-5 control-label" for="stock">Código da Ação: </label>
+                <div class="col-sm-7">
+                    <input autofocus class="form-control" name="stock" id="stock" placeholder="Ex: PETR4" type="text" required/>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-sm-offset-5 col-sm-7">
+                    <button class="btn btn-default" type="submit">Cotação</button>
+                </div>
+            </div>
+        </fieldset>
+    </form>
+{% endblock %}
