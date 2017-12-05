@@ -1,17 +1,29 @@
 import sqlite3
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_session import Session
+from flask_sqlalchemy import SQLAlchemy
 from passlib.apps import custom_app_context as pwd_context
 from tempfile import mkdtemp
 from datetime import datetime
 from datetime import date
 import time
 import operator
+import os
 
 from helpers import *
 
 # configure application
 app = Flask(__name__)
+app.config['SQLACHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+db = SQLAlchemy(app)
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), unique=True, nullable=False)
+
+    def __init__(self, name):
+        self.name = name
 
 # ensure responses aren't cached
 if app.config["DEBUG"]:
@@ -39,7 +51,7 @@ def dict_factory(cursor, row):
     return d
  
 # configure CS50 Library to use SQLite database
-db = sqlite3.connect('data/finance.db')
+#db = sqlite3.connect('data/finance.db')
 db.row_factory = dict_factory
 cursor = db.cursor()    
 
