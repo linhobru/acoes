@@ -1,6 +1,5 @@
 import sqlite3
 from flask import Flask, flash, redirect, render_template, request, session, url_for
-from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
 from passlib.apps import custom_app_context as pwd_context
 from tempfile import mkdtemp
@@ -9,6 +8,7 @@ from datetime import date
 import time
 import operator
 import os
+import psycopg2
 
 from helpers import *
 
@@ -17,13 +17,6 @@ app = Flask(__name__)
 app.config['SQLACHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
 db = SQLAlchemy(app)
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), unique=True, nullable=False)
-
-    def __init__(self, name):
-        self.name = name
 
 # ensure responses aren't cached
 if app.config["DEBUG"]:
@@ -41,7 +34,6 @@ app.jinja_env.filters["usd"] = usd
 app.config["SESSION_FILE_DIR"] = mkdtemp()
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
 
     
 def dict_factory(cursor, row):
@@ -52,8 +44,10 @@ def dict_factory(cursor, row):
  
 # configure CS50 Library to use SQLite database
 #db = sqlite3.connect('data/finance.db')
-db.row_factory = dict_factory
-cursor = db.cursor()    
+#db.row_factory = dict_factory
+conn = psycopg2.connect("dbname=d2o5jghpo8sl2t user=zrtdwhuabolvdl")
+cursor = conn.cursor()
+#cursor = db.cursor()    
 
 @app.route("/")
 @login_required
