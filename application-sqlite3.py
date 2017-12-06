@@ -31,9 +31,16 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
+    
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
  
 # configure CS50 Library to use SQLite database
-db = SQL("postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg")
+db = sqlite3.connect('data/finance.db')
+db.row_factory = dict_factory
 cursor = db.cursor()    
 
 @app.route("/")
