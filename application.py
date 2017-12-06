@@ -59,14 +59,14 @@ cursor = conn.cursor()
 @login_required
 def index():
     
-    cursor.execute("SELECT stock FROM wallet WHERE user_id = ? GROUP BY stock", (session.get("user_id"),))
+    cursor.execute("SELECT stock FROM wallet WHERE user_id = %s GROUP BY stock", (session.get("user_id"),))
     portfolio = cursor.fetchall()
     lucro_historico = 0
     
     if portfolio != []:
         
         for stock in portfolio:
-            cursor.execute("SELECT * FROM wallet WHERE user_id = ? AND stock = ? ORDER BY date", (session.get("user_id"), stock["stock"],))
+            cursor.execute("SELECT * FROM wallet WHERE user_id = %s AND stock = %s ORDER BY date", (session.get("user_id"), stock["stock"],))
             rows = cursor.fetchall()
         
             for i in range(len(rows)):
@@ -192,7 +192,7 @@ def buy():
         
         #insere a transacao no banco de dados wallet
         cursor.execute("INSERT INTO wallet (user_id, stock, company, quantity, price, date, corretora, corretagem, emolumentos, outras_despesas, iss, irrf_fonte)\
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                            VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", 
                             (session.get("user_id"), data["stock"], data["company"], data["quantity"], data["price"], data["date"], data["corretora"], 
                             data["corretagem"], data["emolumentos"], data["outras_despesas"], data["iss"], data["irrf_fonte"],))
         db.commit()
@@ -206,7 +206,7 @@ def buy():
 @login_required
 def history():
     """Show history of transactions."""
-    cursor.execute("SELECT * FROM wallet WHERE user_id = ? ORDER BY date", (session.get("user_id"),))
+    cursor.execute("SELECT * FROM wallet WHERE user_id = %s ORDER BY date", (session.get("user_id"),))
     portfolio = cursor.fetchall()
     
     # create a temporary variable to store TOTAL worth ( cash + share)
@@ -264,8 +264,11 @@ def login():
             return apology("must provide password")
 
         # query database for username
-        cursor.execute("SELECT * FROM users WHERE username = ?", (request.form.get("username"),))
+        SQL = "SELECT * FROM users WHERE username = %s"
+        data = (request.form.get("username"), )
+        cursor.execute(SQL, data) # Note: no % operator
         rows = cursor.fetchall()
+        
         
         # ensure username exists and password is correct
         # old version: if len(rows[0]) != 1 or not pwd_context.verify(request.form.get("password"), rows[0]["hash"]):
@@ -342,7 +345,7 @@ def register():
         
         # query database for username
         try:
-            cursor.execute("INSERT INTO users (username, hash, email, first_name, last_name) VALUES(?, ?, ?, ?, ?)", 
+            cursor.execute("INSERT INTO users (username, hash, email, first_name, last_name) VALUES(%s, %s, %s, %s, %s)", 
                             (username, pwd_context.encrypt(request.form.get("password")), request.form.get("email"), first_name, last_name),)
         except sqlite3.IntegrityError:
             return apology("username already taken")
@@ -350,7 +353,7 @@ def register():
         db.commit()
             
         # query database for username
-        cursor.execute("SELECT * FROM users WHERE username = ?", (request.form.get("username"),))
+        cursor.execute("SELECT * FROM users WHERE username = %s", (request.form.get("username"),))
         rows = cursor.fetchall()
         
         # remember which user has logged in
@@ -391,7 +394,7 @@ def sell():
         
         #insere a transacao no banco de dados wallet
         cursor.execute("INSERT INTO wallet (user_id, stock, company, quantity, price, date, corretora, corretagem, emolumentos, outras_despesas, iss, irrf_fonte)\
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                            VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", 
                             (session.get("user_id"), data["stock"], data["company"], data["quantity"], data["price"], data["date"],
                             data["corretora"], data["corretagem"], data["emolumentos"], data["outras_despesas"], data["iss"], data["irrf_fonte"],))
         
@@ -452,7 +455,7 @@ def registro():
 @login_required
 def encerradas():
     
-    cursor.execute("SELECT stock FROM wallet WHERE user_id = ? GROUP BY stock", (session.get("user_id"),))
+    cursor.execute("SELECT stock FROM wallet WHERE user_id = %s GROUP BY stock", (session.get("user_id"),))
     portfolio = cursor.fetchall()
     lucro = 0
     operacoes = []
@@ -462,7 +465,7 @@ def encerradas():
         for stock in portfolio:
             
             #busca todas as transacoes dessa acao
-            cursor.execute("SELECT * FROM wallet WHERE user_id = ? AND stock = ? ORDER BY date", (session.get("user_id"), stock["stock"],))
+            cursor.execute("SELECT * FROM wallet WHERE user_id = %s AND stock = %s ORDER BY date", (session.get("user_id"), stock["stock"],))
             rows = cursor.fetchall()
             
             #se ha apenas uma transacao dessa acao, pula a acao
