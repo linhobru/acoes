@@ -17,6 +17,7 @@ DATABASE_URL = "postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad
 
 # configure application
 app = Flask(__name__)
+app.secret_key = "doralge"
 app.config['SQLACHEMY_TRACK_MODIFICATIONS'] = False
 #app.config['SQLALCHEMY_DATABASE_URI'] = "postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg"
 #db = SQLAlchemy(app)
@@ -54,6 +55,12 @@ conn = psycopg2.connect(
 cursor = conn.cursor()
 
 @app.route("/")
+
+if __name__ == '__main__':
+    app.debug = True
+    app.run()
+    
+    
 @login_required
 def index():
     
