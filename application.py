@@ -9,14 +9,17 @@ import time
 import operator
 import os
 import psycopg2
+from urllib import parse
 
 from helpers import *
+
+DATABASE_URL: "postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg"
 
 # configure application
 app = Flask(__name__)
 app.config['SQLACHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = "postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg"
-db = SQLAlchemy(app)
+#app.config['SQLALCHEMY_DATABASE_URI'] = "postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg"
+#db = SQLAlchemy(app)
 
 # ensure responses aren't cached
 if app.config["DEBUG"]:
@@ -36,18 +39,19 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 
     
-def dict_factory(cursor, row):
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
-    return d
- 
-# configure CS50 Library to use SQLite database
-#db = sqlite3.connect('data/finance.db')
-#db.row_factory = dict_factory
-conn = psycopg2.connect("dbname=d2o5jghpo8sl2t user=zrtdwhuabolvdl")
+
+#connect database
+parse.uses_netloc.append("postgres")
+url = parse.urlparse(os.environ["DATABASE_URL"])
+
+conn = psycopg2.connect(
+    database=url.path[1:],
+    user=url.username,
+    password=url.password,
+    host=url.hostname,
+    port=url.port
+)  
 cursor = conn.cursor()
-#cursor = db.cursor()    
 
 @app.route("/")
 @login_required
