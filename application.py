@@ -589,3 +589,5 @@ def encerradas():
     else:
         return render_template("encerradas.html") 
 
+
+
