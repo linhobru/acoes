@@ -55,11 +55,6 @@ conn = psycopg2.connect(
 cursor = conn.cursor()
 
 @app.route("/")
-
-if __name__ == '__main__':
-    app.debug = True
-    app.run()
-    
     
 @login_required
 def index():
