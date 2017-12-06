@@ -13,7 +13,7 @@ from urllib import parse
 
 from helpers import *
 
-DATABASE_URL: "postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg"
+DATABASE_URL = "postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg"
 
 # configure application
 app = Flask(__name__)
