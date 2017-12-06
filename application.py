@@ -269,6 +269,7 @@ def login():
         cursor.execute(SQL, data) # Note: no % operator
         rows = cursor.fetchall()
         
+        print (rows)
         
         # ensure username exists and password is correct
         # old version: if len(rows[0]) != 1 or not pwd_context.verify(request.form.get("password"), rows[0]["hash"]):
