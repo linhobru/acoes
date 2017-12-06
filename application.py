@@ -15,7 +15,7 @@ from helpers import *
 # configure application
 app = Flask(__name__)
 app.config['SQLACHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+app.config['SQLALCHEMY_DATABASE_URI'] = postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg
 db = SQLAlchemy(app)
 
 # ensure responses aren't cached
@@ -588,4 +588,6 @@ def encerradas():
         
     else:
         return render_template("encerradas.html") 
+
+
 
