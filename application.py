@@ -1,17 +1,22 @@
 import sqlite3
 from flask import Flask, flash, redirect, render_template, request, session, url_for
-from flask_session import Session
+from flask_sqlalchemy import SQLAlchemy
 from passlib.apps import custom_app_context as pwd_context
 from tempfile import mkdtemp
 from datetime import datetime
 from datetime import date
 import time
 import operator
+import os
+import psycopg2
 
 from helpers import *
 
 # configure application
 app = Flask(__name__)
+app.config['SQLACHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg
+db = SQLAlchemy(app)
 
 # ensure responses aren't cached
 if app.config["DEBUG"]:
@@ -29,12 +34,20 @@ app.jinja_env.filters["usd"] = usd
 app.config["SESSION_FILE_DIR"] = mkdtemp()
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
 
+    
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
  
 # configure CS50 Library to use SQLite database
-db = SQL("postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg")
-cursor = db.cursor()    
+#db = sqlite3.connect('data/finance.db')
+#db.row_factory = dict_factory
+conn = psycopg2.connect("dbname=d2o5jghpo8sl2t user=zrtdwhuabolvdl")
+cursor = conn.cursor()
+#cursor = db.cursor()    
 
 @app.route("/")
 @login_required
