@@ -1,20 +1,22 @@
-from cs50 import SQL
+import sqlite3
 from flask import Flask, flash, redirect, render_template, request, session, url_for
-from flask_session import Session
+from flask_sqlalchemy import SQLAlchemy
 from passlib.apps import custom_app_context as pwd_context
 from tempfile import mkdtemp
-import sqlite3
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from datetime import date
 import time
 import operator
 import os
 import psycopg2
+
 from helpers import *
 
 # configure application
 app = Flask(__name__)
+app.config['SQLACHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = "postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg"
+db = SQLAlchemy(app)
 
 # ensure responses aren't cached
 if app.config["DEBUG"]:
@@ -32,67 +34,129 @@ app.jinja_env.filters["usd"] = usd
 app.config["SESSION_FILE_DIR"] = mkdtemp()
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
 
+    
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+ 
 # configure CS50 Library to use SQLite database
-db = SQL("postgres://ddlbjerytxywjw:ec7973b2fca69cc16a0934c39b211fd01d23ad94f466e7064abaa603a587efea@ec2-54-235-123-153.compute-1.amazonaws.com:5432/daqeuno2frcttg")
+#db = sqlite3.connect('data/finance.db')
+#db.row_factory = dict_factory
+conn = psycopg2.connect("dbname=d2o5jghpo8sl2t user=zrtdwhuabolvdl")
+cursor = conn.cursor()
+#cursor = db.cursor()    
 
 @app.route("/")
 @login_required
 def index():
     
-    portfolio = db.execute("SELECT stock, company, quantity, medio FROM port WHERE user_id = :user_id GROUP BY stock", user_id=session.get("user_id"))
-    #portfolio = db.execute("SELECT stock, company, SUM(quantity) FROM wallet WHERE user_id = :user_id GROUP BY stock", user_id=session.get("user_id"))
-    
-    # create a temporary variable to store TOTAL worth ( cash + share)
-    port_worth = 0
-    port_invested = 0
-    lucro_atual = 0
+    cursor.execute("SELECT stock FROM wallet WHERE user_id = ? GROUP BY stock", (session.get("user_id"),))
+    portfolio = cursor.fetchall()
+    lucro_historico = 0
     
     if portfolio != []:
         
-        data = []
-        for asset in portfolio:
-            
-            quote = lookup(asset['stock'])
-            
-            if asset['quantity'] != 0:
-                
-                stock_info = {}
-                stock_info['company'] = asset['company']
-                stock_info['stock'] = asset['stock']
-                stock_info['medio'] = asset['medio']
-                stock_info['price'] = quote['price']
-                stock_info['quantity'] = asset['quantity']
-                stock_info['total'] = stock_info['quantity'] * stock_info['price']
-                stock_info['investido'] = stock_info['quantity'] * stock_info['medio']
-                stock_info['lucro'] = stock_info['total'] - stock_info['investido']
-                if stock_info['investido'] != 0:
-                    stock_info['percent'] = stock_info['price'] / stock_info['medio'] - 1
-                    if stock_info['quantity'] < 0:
-                        stock_info['percent'] = stock_info['percent'] * (-1)
+        for stock in portfolio:
+            cursor.execute("SELECT * FROM wallet WHERE user_id = ? AND stock = ? ORDER BY date", (session.get("user_id"), stock["stock"],))
+            rows = cursor.fetchall()
+        
+            for i in range(len(rows)):
+                if i == 0:
+                    stock["quantity"] = rows[i]["quantity"]
+                    taxas = rows[i]["iss"] + rows[i]["outras_despesas"] + rows[i]["corretagem"] + rows[i]["emolumentos"]
+                    stock["medio"] = rows[i]["price"] + (taxas/stock["quantity"])
+
+                        
+                #se esta atualizando os dados de uma determinada acao ja transacionada + de uma vez        
                 else:
-                    stock_info['percent'] = 0
-                data.append(stock_info)
+                    old_quantity = stock["quantity"] #armazena quantidade anterior -> para saber se posicao era long, short ou neutra
+                    transaction_quantity = rows[i]["quantity"]
+                    stock["quantity"] += transaction_quantity #nova quantidade
+                    taxas = rows[i]["iss"] + rows[i]["outras_despesas"] + rows[i]["corretagem"] + rows[i]["emolumentos"]
+                    
+                    #se ficou zerado
+                    if stock["quantity"] == 0:
+                        stock["medio"] = 0
+                    
+                    #se estava zerado
+                    elif old_quantity == 0:
+                        #calcula novo preco medio - operacao de compra
+                        stock["medio"] = rows[i]["price"] + (taxas/transaction_quantity)
+                        
+                    #se estava long
+                    elif old_quantity > 0:
+                        # e foi uma compra -> aumento de posicao long
+                        if transaction_quantity > 0:
+                            old_medio = stock["medio"]
+                            transaction_medio = rows[i]["price"] + (taxas/transaction_quantity)
+                            stock["medio"] = ((old_medio*old_quantity) + (transaction_medio*transaction_quantity)) / stock["quantity"]
+                        #operacao de venda -> diminuiu posicao long
+                        elif stock["quantity"] > 0:
+                            stock["medio"] = stock["medio"] #mantem o medio
+                        #vendeu o que tinha e ficou short
+                        else:
+                            transaction_medio = rows[i]["price"] + (taxas/transaction_quantity)
+                            stock["medio"] = transaction_medio
+                    
+                    #se estava short        
+                    else:
+                        # e foi uma venda -> aumento de posicao short
+                        if transaction_quantity < 0:
+                            old_medio = stock["medio"]
+                            transaction_medio = rows[i]["price"] + (taxas/transaction_quantity)
+                            stock["medio"] = ((old_medio*old_quantity) + (transaction_medio*transaction_quantity)) / stock["quantity"]
+                        #operacao de compra -> diminuiu posicao short
+                        elif stock["quantity"] < 0:
+                            stock["medio"] = stock["medio"] #mantem o medio
+                        #comprou mais do que tinha short e ficou comprado
+                        else:
+                            transaction_medio = rows[i]["price"] + (taxas/transaction_quantity)
+                            stock["medio"] = transaction_medio
+                    
+                quote = lookup(stock["stock"])
+                stock["company"] = quote.get('name')
+                stock["atual"] = quote.get('price')
+                stock["lucro"] = stock["quantity"] * (stock["atual"]-stock["medio"])
+                stock["total"] = stock["quantity"] * stock["atual"]
+                lucro_historico += stock["lucro"]
+                if stock["medio"] == 0:
+                    stock["percent"] = 0
+                else:
+                    stock["percent"] = stock["atual"] / stock["medio"] - 1
+                if stock["quantity"] < 0:
+                    stock["percent"] = (-1) * stock["percent"]
+                if stock["lucro"] > 0:
+                    stock["sinal"] = "positivo"
+                elif stock["lucro"] < 0:
+                    stock["sinal"] = "negativo"
+                else:
+                    stock["sinal"] = ""
+                
+        # variaveis para armezar o total investido, o total e lucro da carteira atual
+        port_worth = 0
+        port_invested = 0
+        lucro_atual = 0
+    
+        for stock in portfolio:
+            port_worth += stock["total"]
+            port_invested += stock["quantity"] * stock["medio"]
+            lucro_atual += stock["lucro"]
+            stock['medio'] = usd(stock['medio'])
+            stock['atual'] = usd(stock['atual'])
+            stock['total'] = usd(stock['total'])
+            stock['lucro'] = usd(stock['lucro'])
+            stock['percent'] = percent(stock['percent'])
         
-        for i in range(len(data)):
-            port_worth += data[i]['total']
-            port_invested += data[i]['investido']
-            lucro_atual += data[i]['lucro']
+        #cria nova lista, para excluir acoes com quantidade zero de serem exibidas    
+        data = []
+        for stock in portfolio:
+            if stock["quantity"] != 0:
+                data.append(stock)
         
-        if port_invested == 0:
-            lucro_percent = 0
-        else:
-            lucro_percent = lucro_atual / port_invested
-            
-        for i in range(len(data)):
-            data[i]['medio'] = usd(data[i]['medio'])
-            data[i]['price'] = usd(data[i]['price'])
-            data[i]['total'] = usd(data[i]['total'])
-            data[i]['lucro'] = usd(data[i]['lucro'])
-            data[i]['percent'] = percent(data[i]['percent'])
-        
-        return render_template("index.html", data=data, port_worth=usd(port_worth), port_invested=usd(port_invested), lucro_atual=usd(lucro_atual), lucro_percent=percent(lucro_percent))
+        return render_template("index.html", data=data, port_worth=usd(port_worth), port_invested=usd(port_invested), lucro_atual=usd(lucro_atual))
         
     else:
         return render_template("index.html") 
@@ -120,42 +184,12 @@ def buy():
         data["taxas"] = data["corretagem"] + data["emolumentos"] + data["outras_despesas"] + data["iss"]
         data["medio"] = (data["total"] + data["taxas"]) / data["quantity"]
         
-        #insere a transação no banco de dados wallet
-        db.execute("INSERT INTO wallet (user_id, stock, company, quantity, price, date, corretora, corretagem, emolumentos, outras_despesas, iss, irrf_fonte)\
-                            VALUES(:user_id, :stock, :company, :quantity, :price, :date, :corretora, :corretagem, :emolumentos, :outras_despesas, :iss, :irrf_fonte)", 
-                            user_id=session.get("user_id"), stock=data["stock"], company=data["company"], quantity=data["quantity"], price=data["price"], date=data["date"],
-                            corretora=data["corretora"], corretagem=data["corretagem"], emolumentos=data["emolumentos"], outras_despesas=data["outras_despesas"],
-                            iss=data["iss"], irrf_fonte=data["irrf_fonte"])
-        
-        #atualiza o portfólio atual do cliente                   
-        rows = db.execute("SELECT * FROM port WHERE user_id = :user_id AND stock = :stock", user_id=session.get("user_id"), stock=data["stock"])
-        
-        #se não houver registro da ação, insere como nova transação
-        if not rows:
-            db.execute("INSERT INTO port (user_id, stock, company, quantity, medio) VALUES(:user_id, :stock, :company, :quantity, :medio)", 
-                            user_id=session.get("user_id"), stock=data["stock"], company=data["company"], quantity=data["quantity"], medio=data["medio"])
-        elif rows[0]["quantity"] == 0:
-            db.execute("UPDATE port SET company = :company quantity = :quantity, medio = :medio WHERE user_id = :user_id AND stock = :stock",
-                            user_id=session.get("user_id"), stock=data["stock"], company=data["company"], quantity=data["quantity"], medio=data["medio"])
-        #se houver registro, atualiza quantidade e preço médio
-        else:                    
-            old_quantity = rows[0]["quantity"]
-            old_medio = rows[0]["medio"]
-            new_quantity = old_quantity + data["quantity"]
-            if new_quantity == 0:
-                new_medio = 0
-            #se estava short e passou a ficar long
-            elif old_quantity < 0 and new_quantity > 0:
-                new_medio = data["medio"]
-            #se apenas diminuiu a posição short, mantém o médio anterior
-            elif old_quantity < 0 and new_quantity < 0:
-                new_medio = old_medio
-            #se estava long e aumentou sua posição, recalcula-se o médio
-            else:
-                new_medio = ((old_medio*old_quantity)+(data["medio"]*data["quantity"])) / new_quantity
-            db.execute("UPDATE port SET company = :company, quantity = :quantity, medio = :medio WHERE user_id = :user_id AND stock = :stock",
-                            user_id=session.get("user_id"), stock=data["stock"], company=data["company"], quantity=new_quantity, medio=new_medio)
-
+        #insere a transacao no banco de dados wallet
+        cursor.execute("INSERT INTO wallet (user_id, stock, company, quantity, price, date, corretora, corretagem, emolumentos, outras_despesas, iss, irrf_fonte)\
+                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                            (session.get("user_id"), data["stock"], data["company"], data["quantity"], data["price"], data["date"], data["corretora"], 
+                            data["corretagem"], data["emolumentos"], data["outras_despesas"], data["iss"], data["irrf_fonte"],))
+        db.commit()
         # redirect user to home page
         return redirect(url_for("index"))
         
@@ -166,7 +200,8 @@ def buy():
 @login_required
 def history():
     """Show history of transactions."""
-    portfolio = db.execute("SELECT * FROM wallet WHERE user_id = :user_id ORDER BY date", user_id=session.get("user_id"))
+    cursor.execute("SELECT * FROM wallet WHERE user_id = ? ORDER BY date", (session.get("user_id"),))
+    portfolio = cursor.fetchall()
     
     # create a temporary variable to store TOTAL worth ( cash + share)
     total_transacted = 0
@@ -180,39 +215,25 @@ def history():
     if portfolio != []:
         
         data = []
-        for asset in portfolio:
-            transaction_info = {}
-            transaction_info['stock'] = asset['stock']
-            transaction_info['company'] = asset['company']
-            transaction_info['price'] = asset['price']
-            transaction_info['quantity'] = asset['quantity']
-            transaction_info['taxas'] = asset['corretagem'] + asset['emolumentos'] + asset['iss'] + asset['outras_despesas']
-            taxas += transaction_info['taxas']
-            if transaction_info['quantity'] < 0:
-                transaction_info['total'] = (transaction_info['quantity'] * transaction_info['price'] * -1) - transaction_info['taxas']
-                vendas += transaction_info['total']
+        for stock in portfolio:
+            stock['taxas'] = stock['corretagem'] + stock['emolumentos'] + stock['iss'] + stock['outras_despesas']
+            taxas += stock['taxas']
+            if stock['quantity'] < 0:
+                stock['total'] = (stock['quantity'] * stock['price'] * -1) - stock['taxas']
+                vendas += stock['total']
             else:
-                transaction_info['total'] = (transaction_info['quantity'] * transaction_info['price']) + transaction_info['taxas']
-                compras += transaction_info['total']
-            transaction_info['date'] = asset['date']
-            total_transacted += transaction_info['total']
-            transaction_info['price'] = usd(transaction_info['price'])
-            transaction_info['total'] = usd(transaction_info['total'])
-            transaction_info['taxas'] = usd(transaction_info['taxas'])
-            data.append(transaction_info)
-            
-        #vai calcular o valor do portfolio atual
-        rows = db.execute("SELECT * FROM port WHERE user_id = :user_id", user_id=session.get("user_id"))
-            
-        if rows != []:
-            for i in range(len(rows)):
-                quote = lookup(rows[i]['stock'])
-                port_worth += (rows[i]['quantity'] * quote.get('price'))
+                stock['total'] = (stock['quantity'] * stock['price']) + stock['taxas']
+                compras += stock['total']
+            total_transacted += stock['total']
+            stock['price'] = usd(stock['price'])
+            stock['total'] = usd(stock['total'])
+            stock['taxas'] = usd(stock['taxas'])
+            quote = lookup(stock["stock"])
+            port_worth += (stock['quantity'] * quote.get('price'))
 
         lucro = port_worth + vendas - compras
         
-        
-        return render_template("history.html", data=data, total_transacted=usd(total_transacted), vendas=usd(vendas),
+        return render_template("history.html", portfolio=portfolio, total_transacted=usd(total_transacted), vendas=usd(vendas),
                                                taxas=usd(taxas), port_worth=usd(port_worth), compras=usd(compras), lucro=usd(lucro))
         
     else:
@@ -237,9 +258,11 @@ def login():
             return apology("must provide password")
 
         # query database for username
-        rows = db.execute("SELECT * FROM users WHERE username = :username", username=request.form.get("username"))
-
+        cursor.execute("SELECT * FROM users WHERE username = ?", (request.form.get("username"),))
+        rows = cursor.fetchall()
+        
         # ensure username exists and password is correct
+        # old version: if len(rows[0]) != 1 or not pwd_context.verify(request.form.get("password"), rows[0]["hash"]):
         if len(rows) != 1 or not pwd_context.verify(request.form.get("password"), rows[0]["hash"]):
             return apology("invalid username and/or password")
 
@@ -263,7 +286,7 @@ def logout():
     # redirect user to login form
     return redirect(url_for("login"))
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/quote", methods=["GET", "POST"])
 @login_required
 def quote():
     """Get stock quote."""
@@ -277,7 +300,10 @@ def quote():
         quote = lookup(stock)
         
         if not quote:
-            return apology("stock symbol is invalid")
+            stock = request.form.get("stock") + ".SA"
+            quote = lookup(stock)
+            if not quote:
+                return apology("Codigo de Acao Invalido")
          
         return render_template("quoted.html", stock = quote.get('symbol'), price = quote.get('price'), quote = usd(quote.get('price')), company = quote.get('name'))     
         
@@ -309,17 +335,18 @@ def register():
         last_name = request.form.get("last_name").title()
         
         # query database for username
-        result = db.execute("INSERT INTO users (username, hash, email, first_name, last_name) VALUES(:username, :hash, :email, :first_name, :last_name)", 
-                            username=username, hash=pwd_context.encrypt(request.form.get("password")), email=request.form.get("email"),
-                            first_name=first_name, last_name=last_name)
-                          
-        # ensure username is not duplicated
-        if not result:
+        try:
+            cursor.execute("INSERT INTO users (username, hash, email, first_name, last_name) VALUES(?, ?, ?, ?, ?)", 
+                            (username, pwd_context.encrypt(request.form.get("password")), request.form.get("email"), first_name, last_name),)
+        except sqlite3.IntegrityError:
             return apology("username already taken")
+        
+        db.commit()
             
         # query database for username
-        rows = db.execute("SELECT * FROM users WHERE username = :username", username=request.form.get("username"))
-            
+        cursor.execute("SELECT * FROM users WHERE username = ?", (request.form.get("username"),))
+        rows = cursor.fetchall()
+        
         # remember which user has logged in
         session["user_id"] = rows[0]["id"]
                           
@@ -356,41 +383,11 @@ def sell():
         data["medio"] = (data["total"] - data["taxas"]) / data["quantity"]
         data["quantity"] = (-1) * data["quantity"]
         
-        #insere a transação no banco de dados wallet
-        db.execute("INSERT INTO wallet (user_id, stock, company, quantity, price, date, corretora, corretagem, emolumentos, outras_despesas, iss, irrf_fonte)\
-                            VALUES(:user_id, :stock, :company, :quantity, :price, :date, :corretora, :corretagem, :emolumentos, :outras_despesas, :iss, :irrf_fonte)", 
-                            user_id=session.get("user_id"), stock=data["stock"], company=data["company"], quantity=data["quantity"], price=data["price"], date=data["date"],
-                            corretora=data["corretora"], corretagem=data["corretagem"], emolumentos=data["emolumentos"], outras_despesas=data["outras_despesas"],
-                            iss=data["iss"], irrf_fonte=data["irrf_fonte"])
-        
-        #atualiza o portfólio atual do cliente                   
-        rows = db.execute("SELECT * FROM port WHERE user_id = :user_id AND stock = :stock", user_id=session.get("user_id"), stock=data["stock"])
-        
-        #se não houver registro da ação, insere como nova transação
-        if not rows:
-            db.execute("INSERT INTO port (user_id, stock, company, quantity, medio) VALUES(:user_id, :stock, :company, :quantity, :medio)", 
-                            user_id=session.get("user_id"), stock=data["stock"], company=data["company"], quantity=data["quantity"], medio=data["medio"])
-        elif rows[0]["quantity"] == 0:
-            db.execute("UPDATE port SET company = :company quantity = :quantity, medio = :medio WHERE user_id = :user_id AND stock = :stock",
-                            user_id=session.get("user_id"), stock=data["stock"], company=data["company"], quantity=data["quantity"], medio=data["medio"])
-        
-        #se houver registro, atualiza quantidade e preço médio
-        else:                    
-            old_quantity = rows[0]["quantity"]
-            old_medio = rows[0]["medio"]
-            new_quantity = old_quantity + data["quantity"]
-            if new_quantity == 0:
-                new_medio = 0
-            elif old_quantity > 0 and new_quantity > 0:
-                new_medio = old_medio
-            #se ele estava comprado e passou a ficar vendido, seu novo médio é o médio dessa transação
-            elif old_quantity > 0 and new_quantity < 0:
-                new_medio = data["medio"]
-            #se ele estava vendido e aumentou sua posição vendida, calcula-se o novo médio
-            else:
-                new_medio = ((old_medio*old_quantity)+(data["medio"]*data["quantity"])) / new_quantity
-            db.execute("UPDATE port SET company = :company, quantity = :quantity, medio = :medio WHERE user_id = :user_id AND stock = :stock",
-                            user_id=session.get("user_id"), stock=data["stock"], company=data["company"], quantity=new_quantity, medio=new_medio)
+        #insere a transacao no banco de dados wallet
+        cursor.execute("INSERT INTO wallet (user_id, stock, company, quantity, price, date, corretora, corretagem, emolumentos, outras_despesas, iss, irrf_fonte)\
+                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                            (session.get("user_id"), data["stock"], data["company"], data["quantity"], data["price"], data["date"],
+                            data["corretora"], data["corretagem"], data["emolumentos"], data["outras_despesas"], data["iss"], data["irrf_fonte"],))
         
         # redirect user to home page
         return redirect(url_for("index"))
@@ -434,7 +431,7 @@ def registro():
             stock = request.form.get("stock") + ".SA"
             quote = lookup(stock)
             if not quote:
-                return apology("Código de Ação Inválido")
+                return apology("Codigo de Acao Invalido")
         
         if request.form.get("action") == "Compra":
             return render_template("buy.html", stock = quote.get('symbol'), company = quote.get('name'))
@@ -444,3 +441,153 @@ def registro():
         
     else:
         return render_template("registro.html")    
+        
+@app.route("/encerradas")
+@login_required
+def encerradas():
+    
+    cursor.execute("SELECT stock FROM wallet WHERE user_id = ? GROUP BY stock", (session.get("user_id"),))
+    portfolio = cursor.fetchall()
+    lucro = 0
+    operacoes = []
+    
+    if portfolio != []:
+        
+        for stock in portfolio:
+            
+            #busca todas as transacoes dessa acao
+            cursor.execute("SELECT * FROM wallet WHERE user_id = ? AND stock = ? ORDER BY date", (session.get("user_id"), stock["stock"],))
+            rows = cursor.fetchall()
+            
+            #se ha apenas uma transacao dessa acao, pula a acao
+            if len(rows) > 1:
+        
+                for i in range(len(rows)):
+                    if i == 0:
+                        taxas = rows[i]["iss"] + rows[i]["outras_despesas"] + rows[i]["corretagem"] + rows[i]["emolumentos"]
+                        stock["medio"] = rows[i]["price"] + (taxas/rows[i]["quantity"])
+                        stock["quantity"] = rows[i]["quantity"]
+                            
+                    #se esta atualizando os dados de uma determinada acao ja transacionada + de uma vez        
+                    else:
+                        old_quantity = stock["quantity"] #armazena quantidade anterior -> para saber se posicao era long, short ou neutra
+                        transaction_quantity = rows[i]["quantity"]
+                        stock["quantity"] += transaction_quantity #nova quantidade
+                        taxas = rows[i]["iss"] + rows[i]["outras_despesas"] + rows[i]["corretagem"] + rows[i]["emolumentos"]
+                        old_medio = stock["medio"]
+                        transaction_medio = rows[i]["price"] + (taxas/transaction_quantity)
+                        
+                        if old_quantity * transaction_quantity > 0: #se ocorreram operacoes similares (estava long e aumentou ou estava short e diminuiu)
+                            stock["medio"] = ((old_medio*old_quantity) + (transaction_medio*transaction_quantity)) / stock["quantity"]
+                                
+                        elif old_quantity == 0:
+                            stock["medio"] = transaction_medio
+                            
+                        else: #ocorreram operacoes distintas(venda em posicao buy ou compra em posicao short)
+                            
+                            #cria variavel para armezar dados da operacao encerrada
+                            operacao = {}
+                            operacao["stock"] = stock["stock"]
+                            operacao["quantity"] = min(abs(transaction_quantity), abs(old_quantity))
+                            operacao["company"] = rows[i]["company"]
+                            operacao["data"] = rows[i]["date"]
+
+                            if old_quantity > 0: #se estava comprado, a operacao foi de venda
+                                if stock["quantity"] == 0: #se ficou zerado
+                                    stock["medio"] = 0
+                                elif stock["quantity"] > 0: #continuou comprado
+                                    stock["medio"] = old_medio
+                                else: #ficou vendido
+                                    stock["medio"] = transaction_medio
+                                operacao["mediocompra"] = float(old_medio)
+                                operacao["mediovenda"] = float(transaction_medio)
+                             
+                            else: #se estava vendido, a operacao foi de compra
+                                if stock["quantity"] == 0: #se ficou zerado
+                                    stock["medio"] = 0
+                                elif stock["quantity"] < 0: #continuou short
+                                    stock["medio"] = old_medio
+                                else: #ficou long
+                                    stock["medio"] = transaction_medio
+                                
+                                operacao["mediocompra"] = float(transaction_medio)
+                                operacao["mediovenda"] = float(old_medio)
+                                
+                            operacao["lucro"] = operacao["quantity"] * (operacao["mediovenda"] - operacao["mediocompra"])
+                            lucro += operacao["lucro"]
+                            
+                            if operacao["lucro"] > 0:
+                                operacao["sinal"] = "positivo"
+                            elif operacao["lucro"] < 0:
+                                operacao["sinal"] = "negativo"
+                            else:
+                                operacao["sinal"] = ""
+                    
+                            if operacao["mediocompra"] == 0:
+                                operacao["percent"] = 0
+                            else:
+                                operacao["percent"] = operacao["mediovenda"] / operacao["mediocompra"] - 1
+                            
+                            operacao["mediocompra"] = usd(operacao["mediocompra"])
+                            operacao["mediovenda"] = usd(operacao["mediovenda"])
+                            #operacao["lucro"] = usd(operacao["lucro"]) 
+                            operacao["percent"] = percent(operacao["percent"])
+                            data_operacao = datetime.strptime(operacao["data"], "%Y-%m-%d")
+                            operacao["mes"] = data_operacao.month
+                            operacao["ano"] = data_operacao.year
+                            operacao["periodo"] = nome_mes(operacao["mes"]) + " de " + str(operacao["ano"])
+                            operacoes.append(operacao)
+        
+        #ordena as operacoes por ordem cronologica
+        operacoes.sort(key=operator.itemgetter('data'))
+        
+        data = []
+        for i in range(len(operacoes)):
+            if operacoes[i]["periodo"] not in data:
+                data.append(operacoes[i]["periodo"])
+        
+        inicio = 0
+        i = 0
+        lista = []
+        
+        #cria uma lista, que vai separar as operacoes por mes. Lista = [[operacoes de mes1],[operacoes de mes2]]
+        for j in range(len(operacoes)):
+            if j == (len(operacoes) - 1):
+                if operacoes[j]["periodo"] != data[i]:
+                    final = j
+                    lista.append(operacoes[inicio:final])
+                    inicio = final
+                    lista.append(operacoes[inicio:])
+                else:
+                    lista.append(operacoes[inicio:])
+            else:
+                if operacoes[j]["periodo"] != data[i]:
+                    final = j
+                    lista.append(operacoes[inicio:final])
+                    inicio = final
+                    i += 1
+                
+        
+        #adicionar lucro a lista de operacoes do mes
+        
+        dados = []        
+        for i in range(len(data)):
+            dado = {}
+            dado["periodo"] = data[i]
+            dado["valores"] = lista[i]
+            dado["lucro"] = 0
+            dados.append(dado)
+        
+        for dado in dados:
+            for operacao in dado["valores"]:
+                dado["lucro"] += operacao["lucro"]
+                operacao["lucro"] = usd(operacao["lucro"])
+            dado["lucro"] = usd(dado["lucro"])
+            
+        return render_template("encerradas.html", dados=dados, lucro=usd(lucro))
+        
+    else:
+        return render_template("encerradas.html") 
+
+
+
