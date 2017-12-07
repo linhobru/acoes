@@ -71,6 +71,7 @@ def index():
             rows = cursor.fetchall()
         
             for i in range(len(rows)):
+                print (stock)
                 if i == 0:
                     stock["quantity"] = rows[i]["quantity"]
                     taxas = rows[i]["iss"] + rows[i]["outras_despesas"] + rows[i]["corretagem"] + rows[i]["emolumentos"]
@@ -269,8 +270,6 @@ def login():
         data = (request.form.get("username"), )
         cursor.execute(SQL, data) # Note: no % operator
         rows = cursor.fetchall()
-        
-        print (rows)
         
         # ensure username exists and password is correct
         # old version: if len(rows[0]) != 1 or not pwd_context.verify(request.form.get("password"), rows[0]["hash"]):
