@@ -9,6 +9,7 @@ import time
 import operator
 import os
 import psycopg2
+import psycopg2.extras
 from urllib import parse
 
 from helpers import *
