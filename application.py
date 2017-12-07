@@ -65,7 +65,7 @@ def index():
     lucro_historico = 0
     
     if portfolio != []:
-        
+        print (portfolio)
         for stock in portfolio:
             cursor.execute("SELECT * FROM wallet WHERE user_id = %s AND stock = %s ORDER BY date", (session.get("user_id"), stock["stock"],))
             rows = cursor.fetchall()
