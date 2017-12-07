@@ -52,7 +52,7 @@ conn = psycopg2.connect(
     host=url.hostname,
     port=url.port
 )  
-cursor = conn.cursor()
+cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
 @app.route("/")
     
