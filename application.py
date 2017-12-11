@@ -80,6 +80,9 @@ def index():
             cursor.execute("SELECT * FROM wallet WHERE user_id = %s AND stock = %s ORDER BY date", (session.get("user_id"), stock["stock"],))
             rows = get_dict(cursor)
             print (rows)
+            print (rows[0])
+            print (rows[0]["stock"])
+            print (rows[0]["quantity"])
             
             for i in range(len(rows)):
                 if i == 0:
