@@ -58,7 +58,7 @@ cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 def get_dict(cursor):
     ans = cursor.fetchall()
     dict_result = []
-    for row in resultset:
+    for row in ans:
         dict_result.append(dict(row))
     return dict_result
 
