@@ -38,32 +38,72 @@ def lookup(symbol):
     if symbol.startswith("^"):
         return None
 
-    # reject symbol if it contains comma
+    # Reject symbol if it contains comma
     if "," in symbol:
         return None
 
-    # query Yahoo for quote
+    # Query Yahoo for quote
     # http://stackoverflow.com/a/21351911
     try:
-        url = "http://download.finance.yahoo.com/d/quotes.csv?f=snl1&s={}".format(symbol)
+
+        # GET CSV
+        url = f"http://download.finance.yahoo.com/d/quotes.csv?f=snl1&s={symbol}"
         webpage = urllib.request.urlopen(url)
+
+        # Read CSV
         datareader = csv.reader(webpage.read().decode("utf-8").splitlines())
+
+        # Parse first row
         row = next(datareader)
-    except:
-        return None
 
-    # ensure stock exists
+        # Ensure stock exists
+        try:
+            price = float(row[2])
+        except:
+            return None
+
+        # Return stock's name (as a str), price (as a float), and (uppercased) symbol (as a str)
+        return {
+            "name": row[1],
+            "price": price,
+            "symbol": row[0].upper()
+        }
+
+    except:
+        pass
+
+    # Query Alpha Vantage for quote instead
+    # https://www.alphavantage.co/documentation/
     try:
-        price = float(row[2])
+
+        # GET CSV
+        url = f"https://www.alphavantage.co/query?apikey=NAJXWIA8D6VN6A3K&datatype=csv&function=TIME_SERIES_INTRADAY&interval=1min&symbol={symbol}"
+        webpage = urllib.request.urlopen(url)
+
+        # Parse CSV
+        datareader = csv.reader(webpage.read().decode("utf-8").splitlines())
+
+        # Ignore first row
+        next(datareader)
+
+        # Parse second row
+        row = next(datareader)
+
+        # Ensure stock exists
+        try:
+            price = float(row[4])
+        except:
+            return None
+
+        # Return stock's name (as a str), price (as a float), and (uppercased) symbol (as a str)
+        return {
+            "name": symbol.upper(),  # for backward compatibility with Yahoo
+            "price": price,
+            "symbol": symbol.upper()
+        }
+
     except:
         return None
-
-    # return stock's name (as a str), price (as a float), and (uppercased) symbol (as a str)
-    return {
-        "name": row[1],
-        "price": price,
-        "symbol": row[0].upper()
-    }
 
 def usd(value):
     """Formats value as BRL."""
@@ -101,3 +141,6 @@ def nome_mes(value):
         return "Dezembro"
     else:
         return ""
+        
+
+print(lookup("PETR4.SA"))
