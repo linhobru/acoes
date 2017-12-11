@@ -220,7 +220,7 @@ def buy():
 def history():
     """Show history of transactions."""
     cursor.execute("SELECT * FROM wallet WHERE user_id = %s ORDER BY date", (session.get("user_id"),))
-    portfolio = cursor.fetchall()
+    portfolio = get_dict(cursor)
     
     # create a temporary variable to store TOTAL worth ( cash + share)
     total_transacted = 0
@@ -280,7 +280,7 @@ def login():
         SQL = "SELECT * FROM users WHERE username = %s"
         data = (request.form.get("username"), )
         cursor.execute(SQL, data) # Note: no % operator
-        rows = cursor.fetchall()
+        rows = get_dict(cursor)
         
         # ensure username exists and password is correct
         # old version: if len(rows[0]) != 1 or not pwd_context.verify(request.form.get("password"), rows[0]["hash"]):
@@ -366,7 +366,7 @@ def register():
             
         # query database for username
         cursor.execute("SELECT * FROM users WHERE username = %s", (request.form.get("username"),))
-        rows = cursor.fetchall()
+        rows = get_dict(cursor)
         
         # remember which user has logged in
         session["user_id"] = rows[0]["id"]
@@ -468,7 +468,7 @@ def registro():
 def encerradas():
     
     cursor.execute("SELECT stock FROM wallet WHERE user_id = %s GROUP BY stock", (session.get("user_id"),))
-    portfolio = cursor.fetchall()
+    portfolio = get_dict(cursor)
     lucro = 0
     operacoes = []
     
@@ -478,7 +478,7 @@ def encerradas():
             
             #busca todas as transacoes dessa acao
             cursor.execute("SELECT * FROM wallet WHERE user_id = %s AND stock = %s ORDER BY date", (session.get("user_id"), stock["stock"],))
-            rows = cursor.fetchall()
+            rows = get_dict(cursor)
             
             #se ha apenas uma transacao dessa acao, pula a acao
             if len(rows) > 1:
