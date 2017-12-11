@@ -55,6 +55,17 @@ conn = psycopg2.connect(
 )  
 cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
+def get_dict(cursor):
+    ans = cursor.fetchall()
+    dict_result = []
+    for row in resultset:
+        dict_result.append(dict(row))
+    return dict_result
+
+    sql = """select * from tablename"""
+
+
+
 @app.route("/")
     
 @login_required
@@ -65,10 +76,9 @@ def index():
     lucro_historico = 0
     
     if portfolio != []:
-        
         for stock in portfolio:
             cursor.execute("SELECT * FROM wallet WHERE user_id = %s AND stock = %s ORDER BY date", (session.get("user_id"), stock["stock"],))
-            rows = cursor.fetchall()
+            rows = get_dict(cursor)
             print (rows)
             
             for i in range(len(rows)):
