@@ -72,11 +72,13 @@ def get_dict(cursor):
 def index():
     
     cursor.execute("SELECT stock FROM wallet WHERE user_id = %s GROUP BY stock", (session.get("user_id"),))
-    portfolio = cursor.fetchall()
+    portfolio = get_dict(cursor)
+    print (portfolio)
     lucro_historico = 0
     
     if portfolio != []:
         for stock in portfolio:
+            print (stock)
             cursor.execute("SELECT * FROM wallet WHERE user_id = %s AND stock = %s ORDER BY date", (session.get("user_id"), stock["stock"],))
             rows = get_dict(cursor)
             print (rows)
