@@ -73,18 +73,13 @@ def index():
     
     cursor.execute("SELECT stock FROM wallet WHERE user_id = %s GROUP BY stock", (session.get("user_id"),))
     portfolio = get_dict(cursor)
-    print (portfolio)
     lucro_historico = 0
     
     if portfolio != []:
         for stock in portfolio:
-            print (stock)
             cursor.execute("SELECT * FROM wallet WHERE user_id = %s AND stock = %s ORDER BY date", (session.get("user_id"), stock["stock"],))
             rows = get_dict(cursor)
-            print (rows)
-            print (rows[0])
-            print (rows[0]["stock"])
-            print (rows[0]["quantity"])
+
             
             for i in range(len(rows)):
                 if i == 0:
@@ -143,7 +138,7 @@ def index():
                 stock["company"] = quote.get('name')
                 stock["atual"] = quote.get('price')
                 print (stock)
-                stock["lucro"] = stock["quantity"] * (stock["atual"])-Decima9stock["medio"])
+                stock["lucro"] = stock["quantity"] * (stock["atual"]-stock["medio"])
                 stock["total"] = stock["quantity"] * stock["atual"]
                 lucro_historico += stock["lucro"]
                 if stock["medio"] == 0:
