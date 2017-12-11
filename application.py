@@ -142,13 +142,14 @@ def index():
                 quote = lookup(stock["stock"])
                 stock["company"] = quote.get('name')
                 stock["atual"] = quote.get('price')
-                stock["lucro"] = stock["quantity"] * (stock["atual"]-stock["medio"])
+                print (stock)
+                stock["lucro"] = stock["quantity"] * (stock["atual"])-Decima9stock["medio"])
                 stock["total"] = stock["quantity"] * stock["atual"]
                 lucro_historico += stock["lucro"]
                 if stock["medio"] == 0:
                     stock["percent"] = 0
                 else:
-                    stock["percent"] = stock["atual"] / stock["medio"] - 1
+                    stock["percent"] = (stock["atual"] / stock["medio"]) - 1
                 if stock["quantity"] < 0:
                     stock["percent"] = (-1) * stock["percent"]
                 if stock["lucro"] > 0:
