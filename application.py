@@ -82,9 +82,8 @@ def index():
             print (rows)
             
             for i in range(len(rows)):
-                print (stock)
                 if i == 0:
-                    stock["quantity"] = rows["quantity"][i]
+                    stock["quantity"] = rows[i]["quantity"]
                     taxas = rows[i]["iss"] + rows[i]["outras_despesas"] + rows[i]["corretagem"] + rows[i]["emolumentos"]
                     stock["medio"] = rows[i]["price"] + (taxas/stock["quantity"])
 
