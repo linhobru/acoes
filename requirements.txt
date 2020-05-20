@@ -29,7 +29,7 @@ future==0.16.0
 gunicorn==19.7.1
 help50==2.0.0
 html5lib==0.999999999
-httplib2==0.9
+httplib2==0.18.0
 icdiff==1.9.1
 idna==2.5
 ipython-genutils==0.2.0
